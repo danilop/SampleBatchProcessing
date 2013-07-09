@@ -1,6 +1,6 @@
-# Sample Reference Implementation for Batch Processing on AWS
+# Sample Implementation of Batch Processing on Amazon Web Services (AWS)
 
-This is a Reference Implementation for the [AWS Reference Architecture for Batch Processing](http://aws.amazon.com/architecture/).
+This is a Sample Implementation for the [AWS Reference Architecture for Batch Processing](http://aws.amazon.com/architecture/).
 
 Is is implemented in Python, using [boto](http://aws.amazon.com/sdkforpython/), and the new [AWS Command Line Interface (CLI)](http://aws.amazon.com/cli/).
 
