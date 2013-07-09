@@ -1,18 +1,18 @@
-# Reference Implementation for Batch Processing on AWS
+# Sample Reference Implementation for Batch Processing on AWS
 
 This is a Reference Implementation for the [AWS Reference Architecture for Batch Processing](http://aws.amazon.com/architecture/).
 
 Is is implemented in Python, using [boto](http://aws.amazon.com/sdkforpython/), and the new [AWS Command Line Interface (CLI)](http://aws.amazon.com/cli/).
 
 Two tools are provided:
-* SendJobs.py - To upload files from a directory to S3 and load "jobs" on processing those files on an SQS queue
-* GetJobs.py - To get "jobs" from an SQS queue and upload on S3 the result of the processing
+* SendJobs.py - To upload files from a (local) directory to S3 and put "job" requests to process those files as messages in an SQS queue
+* GetJobs.py - To get "job" messages from an SQS queue and upload on S3 the outcome of the processing
 
-The setup leverages EC2 Auto Scaling to have a group of instances that is empty (i.e. no instance is running) when there are no "jobs" in the SQS queue and grows whene there is the need.
+The setup leverages EC2 Auto Scaling to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.
 
 ## Tutorial
 
-### Create an S# Bucket to host input and output files
+### Create an S3 Bucket to host input and output files
 
     aws s3 create-bucket --bucket  <S3 Bucker Name> --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. us-east-1> }'
 
@@ -33,6 +33,8 @@ Write doen the Instance Profile ARN from the Summary tab, you'll need it later.
 ### Create Auto Scaling Launch Configuration
 
 For this sample I'm using a default Amazon Linux EBS-backed AMI, you can take the AMI ID [here](http://aws.amazon.com/amazon-linux-ami)
+The user data script provided automatically configures and run multiple parallel "GetJobs.py" scripts per node to get "job" from the queue and process them, uploading the final result back on S3. You probably need to edit the "user-data.sh" file before launching the following command.
+Alternatively you can create your own AMI that starts one of more parallel "GetJobs.py" scripts at boot.
 
     aws autoscaling create-launch-configuration --launch-configuration-name asl-batch --image-id <Amazon Linux AMI ID> --instance-type <EC2 Instance Type, e.g. t1.micro> --iam-instance-profile <Instance Profile ARN> --user-data "`cat user-data.sh`"
 
@@ -44,16 +46,42 @@ If you want to log in to the instances launched by Auto SCaling you can add the 
 
     aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch --launch-configuration-name asl-batch --min-size 0 --max-size <Number of Instances to starrt when there are "jobs" in the SQS queue> --availability-zones <List of AZ in the region, e.g. for "eu-west-1" you can use all of "eu-west-1a" "eu-west-1b" "eu-west-1c"> --default-cooldown 300
 
-aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment 3 --adjustment-type ExactCapacity
+### Create Auto Scaling "Up" Policy
 
-aws cloudwatch put-metric-alarm --alarm-name StartBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 1 --comparison-operator GreaterThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions arn:was:autoscaling:…[replace with the ARN output of previous command]
+    aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment 3 --adjustment-type ExactCapacity
 
-aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-downscale-policy --scaling-adjustment 0 --adjustment-type ExactCapacity
+Write down the "PolicyARN", you need it in the next step.
 
-aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions arn:was:autoscaling:...[replace with the ARN output of previous command]
+### Create CloudWatch Alarm to trigger "Up" scaling Policy
 
-./SendJobs.py ~/Desktop/Test batch-proc input/ output/ batch-queue eu-west-1
+    aws cloudwatch put-metric-alarm --alarm-name StartBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 1 --comparison-operator GreaterThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions <"Up" PolicyARN>
 
-To change the Launch Configuration create a new one and update the Auto Scaling Group:
+### Create Auto Scaling "Down" Policy
 
-aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 --auto-scaling-group-name asg-batch
+    aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-downscale-policy --scaling-adjustment 0 --adjustment-type ExactCapacity
+
+Write down the "PolicyARN", you need it in the next step.
+
+### Create CloudWatch Alarm to trigger "Down" scaling Policy
+
+aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions <"Down" PolicyARN>
+
+### Send the jobs uploading files from a directory
+
+The directory can be local or on an EC@ instance.
+
+    ./SendJobs.py <Directory> <S3 Bucket Name> input/ output/ <SQS Queue Name> <AWS Region, e.g. "eu-west-1">
+
+To get help run the tool without options
+
+    ./SendJobs.py
+
+After a few minutes the first CloudWatch Alarm should trigger the "Up" scaling Policy to start EC2 Instances configured to consume "jobs" from the SQS queue.
+When all "jobs" are processed and the SQS is "empty" the seconf CloudWatch Alarm should trigger the "Down" scaling Policy to shutdown and terminate the EC2 Instances.
+You should find the output of the processing in the S3 Bucket under the "ouput/" prefix.
+
+### Change the Launch Configuration of an Auto Scaling Group
+
+If you need to change the Launch Configuration create a new one and update the Auto Scaling Group, e.g.
+
+    aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 --auto-scaling-group-name asg-batch

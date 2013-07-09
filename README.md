@@ -12,6 +12,22 @@ The setup leverages EC2 Auto Scaling to have a group of instances that is empty 
 
 ## Tutorial
 
+### Install AWS CLI
+
+Install using pip
+
+    pip install awscli
+
+or using easy_install
+
+    easy_install awscli
+
+Before using AWS CLI, you first need to specify your AWS account credentials and default AWS region as described [here](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
+
+The aws-cli package includes a very useful command completion feature, e.g. to enable tab completion for bash use the built-in command complete (not boot persistant):
+
+    complete -C aws_completer aws
+
 ### Create an S3 Bucket to host input and output files
 
     aws s3 create-bucket --bucket  <S3 Bucker Name> --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. us-east-1> }'
