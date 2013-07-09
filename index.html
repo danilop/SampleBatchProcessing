@@ -41,8 +41,8 @@
 <p>Two tools are provided:</p>
 
 <ul>
-<li>SendJobs.py - To upload files from a (local) directory to S3 and put "job" requests to process those files as messages in an SQS queue</li>
-<li>GetJobs.py - To get "job" messages from an SQS queue and upload on S3 the outcome of the processing</li>
+<li>SendJobs.py - to upload files from a (local) directory to S3 and put "job" requests to process those files as messages in an SQS queue</li>
+<li>GetJobs.py - to get "job" messages from an SQS queue and upload on S3 the outcome of the processing</li>
 </ul><p>The setup leverages EC2 Auto Scaling to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.</p>
 
 <h2>
@@ -71,7 +71,7 @@
 <h3>
 <a name="create-an-s3-bucket-to-host-input-and-output-files" class="anchor" href="#create-an-s3-bucket-to-host-input-and-output-files"><span class="octicon octicon-link"></span></a>Create an S3 Bucket to host input and output files</h3>
 
-<pre><code>aws s3 create-bucket --bucket  &lt;S3 Bucker Name&gt; --create-bucket-configuration '{ "location_constraint": &lt;Your AWS Region, e.g. us-east-1&gt; }'
+<pre><code>aws s3 create-bucket --bucket  &lt;S3 Bucker Name&gt; --create-bucket-configuration '{ "location_constraint": &lt;Your AWS Region, e.g. eu-west-1&gt; }'
 </code></pre>
 
 <h3>
@@ -88,8 +88,8 @@
 <p>From the Web Console -&gt; IAM -&gt; Roles -&gt; Create Role -&gt; Under "AWS Service Roles" select "Amazon EC2".</p>
 
 <p>See the "role.json" file for a sample role giving access to an S3 Bucket and an SQS queue.
-You should replace "", "" and "" with yours.
-Write doen the Instance Profile ARN from the Summary tab, you'll need it later.</p>
+You should replace "AWS Account", "S3 Bucket Name" and "SQS Queue Name" with yours.
+Write down the Instance Profile ARN from the Summary tab, you'll need it later.</p>
 
 <h3>
 <a name="create-auto-scaling-launch-configuration" class="anchor" href="#create-auto-scaling-launch-configuration"><span class="octicon octicon-link"></span></a>Create Auto Scaling Launch Configuration</h3>
@@ -109,13 +109,13 @@ Alternatively you can create your own AMI that starts one of more parallel "GetJ
 <h3>
 <a name="create-auto-scaling-group" class="anchor" href="#create-auto-scaling-group"><span class="octicon octicon-link"></span></a>Create Auto Scaling Group</h3>
 
-<pre><code>aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch --launch-configuration-name asl-batch --min-size 0 --max-size &lt;Number of Instances to starrt when there are "jobs" in the SQS queue&gt; --availability-zones &lt;List of AZ in the region, e.g. for "eu-west-1" you can use all of "eu-west-1a" "eu-west-1b" "eu-west-1c"&gt; --default-cooldown 300
+<pre><code>aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch --launch-configuration-name asl-batch --min-size 0 --max-size &lt;Number of Instances to start when there are "jobs" in the SQS queue&gt; --availability-zones &lt;List of AZ in the region, e.g. for "eu-west-1" you can use all of "eu-west-1a" "eu-west-1b" "eu-west-1c"&gt; --default-cooldown 300
 </code></pre>
 
 <h3>
 <a name="create-auto-scaling-up-policy" class="anchor" href="#create-auto-scaling-up-policy"><span class="octicon octicon-link"></span></a>Create Auto Scaling "Up" Policy</h3>
 
-<pre><code>aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment 3 --adjustment-type ExactCapacity
+<pre><code>aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment &lt;Number of Instances to start when there are "jobs" in the SQS queue&gt; --adjustment-type ExactCapacity
 </code></pre>
 
 <p>Write down the "PolicyARN", you need it in the next step.</p>
@@ -137,12 +137,13 @@ Alternatively you can create your own AMI that starts one of more parallel "GetJ
 <h3>
 <a name="create-cloudwatch-alarm-to-trigger-down-scaling-policy" class="anchor" href="#create-cloudwatch-alarm-to-trigger-down-scaling-policy"><span class="octicon octicon-link"></span></a>Create CloudWatch Alarm to trigger "Down" scaling Policy</h3>
 
-<p>aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions &lt;"Down" PolicyARN&gt;</p>
+<pre><code>aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions &lt;"Down" PolicyARN&gt;
+</code></pre>
 
 <h3>
 <a name="send-the-jobs-uploading-files-from-a-directory" class="anchor" href="#send-the-jobs-uploading-files-from-a-directory"><span class="octicon octicon-link"></span></a>Send the jobs uploading files from a directory</h3>
 
-<p>The directory can be local or on an EC@ instance.</p>
+<p>The directory can be local or on an EC2 instance.</p>
 
 <pre><code>./SendJobs.py &lt;Directory&gt; &lt;S3 Bucket Name&gt; input/ output/ &lt;SQS Queue Name&gt; &lt;AWS Region, e.g. "eu-west-1"&gt;
 </code></pre>
@@ -159,7 +160,7 @@ You should find the output of the processing in the S3 Bucket under the "ouput/"
 <h3>
 <a name="change-the-launch-configuration-of-an-auto-scaling-group" class="anchor" href="#change-the-launch-configuration-of-an-auto-scaling-group"><span class="octicon octicon-link"></span></a>Change the Launch Configuration of an Auto Scaling Group</h3>
 
-<p>If you need to change the Launch Configuration create a new one and update the Auto Scaling Group, e.g.</p>
+<p>If later on you need to change the Launch Configuration create a new one and update the Auto Scaling Group, e.g.</p>
 
 <pre><code>aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 --auto-scaling-group-name asg-batch
 </code></pre>
