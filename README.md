@@ -5,8 +5,8 @@ This is a Sample Implementation for the [AWS Reference Architecture for Batch Pr
 Is is implemented in Python, using [boto](http://aws.amazon.com/sdkforpython/), and the new [AWS Command Line Interface (CLI)](http://aws.amazon.com/cli/).
 
 Two tools are provided:
-* SendJobs.py - To upload files from a (local) directory to S3 and put "job" requests to process those files as messages in an SQS queue
-* GetJobs.py - To get "job" messages from an SQS queue and upload on S3 the outcome of the processing
+* SendJobs.py - to upload files from a (local) directory to S3 and put "job" requests to process those files as messages in an SQS queue
+* GetJobs.py - to get "job" messages from an SQS queue and upload on S3 the outcome of the processing
 
 The setup leverages EC2 Auto Scaling to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.
 
@@ -30,7 +30,7 @@ The aws-cli package includes a very useful command completion feature, e.g. to e
 
 ### Create an S3 Bucket to host input and output files
 
-    aws s3 create-bucket --bucket  <S3 Bucker Name> --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. us-east-1> }'
+    aws s3 create-bucket --bucket  <S3 Bucker Name> --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. eu-west-1> }'
 
 ### Create an SQS Queue to centralize "job" requests
 
@@ -44,7 +44,7 @@ From the Web Console -> IAM -> Roles -> Create Role -> Under "AWS Service Roles"
 
 See the "role.json" file for a sample role giving access to an S3 Bucket and an SQS queue.
 You should replace "AWS Account", "S3 Bucket Name" and "SQS Queue Name" with yours.
-Write doen the Instance Profile ARN from the Summary tab, you'll need it later.
+Write down the Instance Profile ARN from the Summary tab, you'll need it later.
 
 ### Create Auto Scaling Launch Configuration
 
@@ -84,7 +84,7 @@ Write down the "PolicyARN", you need it in the next step.
 
 ### Send the jobs uploading files from a directory
 
-The directory can be local or on an EC@ instance.
+The directory can be local or on an EC2 instance.
 
     ./SendJobs.py <Directory> <S3 Bucket Name> input/ output/ <SQS Queue Name> <AWS Region, e.g. "eu-west-1">
 
@@ -98,6 +98,6 @@ You should find the output of the processing in the S3 Bucket under the "ouput/"
 
 ### Change the Launch Configuration of an Auto Scaling Group
 
-If you need to change the Launch Configuration create a new one and update the Auto Scaling Group, e.g.
+If later on you need to change the Launch Configuration create a new one and update the Auto Scaling Group, e.g.
 
     aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 --auto-scaling-group-name asg-batch

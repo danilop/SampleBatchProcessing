@@ -5,7 +5,7 @@ COMMAND="cp" # For testing
 #PARAMS="<working directory> <output extension> <SQS queue> <AWS region> <command>"
 PARAMS="/var/tmp .out batch-queue eu-west-1 $COMMAND"
 yum update -y
-wget -O $SCRIPT "https://batch-proc.s3.amazonaws.com/GetJobs.py?AWSAccessKeyId=AKIAI7XQAT4EZOA7C45Q&Expires=1404897450&Signature=Lt3Z1BGV%2BBb2eoR%2FSBnSt7%2F2QsM%3D"
+wget -O $SCRIPT "<Replace this with a Signed URL to download the GetJobs.py script>"
 for i in $(seq $PARALLEL)
 do
     LOGFILE=./${SCRIPT}.$i.log
