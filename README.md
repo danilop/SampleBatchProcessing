@@ -43,7 +43,7 @@ The "VisibilityTimeout" is expressed in seconds and should be larger than the ma
 From the Web Console -> IAM -> Roles -> Create Role -> Under "AWS Service Roles" select "Amazon EC2".
 
 See the "role.json" file for a sample role giving access to an S3 Bucket and an SQS queue.
-You should replace "<AWS ACCount>", "<S3 Bucket Name>" and "<SQS Queue Name>" with yours.
+You should replace "AWS Account", "S3 Bucket Name" and "SQS Queue Name" with yours.
 Write doen the Instance Profile ARN from the Summary tab, you'll need it later.
 
 ### Create Auto Scaling Launch Configuration
@@ -60,11 +60,11 @@ If you want to log in to the instances launched by Auto SCaling you can add the 
 
 ### Create Auto Scaling Group
 
-    aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch --launch-configuration-name asl-batch --min-size 0 --max-size <Number of Instances to starrt when there are "jobs" in the SQS queue> --availability-zones <List of AZ in the region, e.g. for "eu-west-1" you can use all of "eu-west-1a" "eu-west-1b" "eu-west-1c"> --default-cooldown 300
+    aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch --launch-configuration-name asl-batch --min-size 0 --max-size <Number of Instances to start when there are "jobs" in the SQS queue> --availability-zones <List of AZ in the region, e.g. for "eu-west-1" you can use all of "eu-west-1a" "eu-west-1b" "eu-west-1c"> --default-cooldown 300
 
 ### Create Auto Scaling "Up" Policy
 
-    aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment 3 --adjustment-type ExactCapacity
+    aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment <Number of Instances to start when there are "jobs" in the SQS queue> --adjustment-type ExactCapacity
 
 Write down the "PolicyARN", you need it in the next step.
 
@@ -80,7 +80,7 @@ Write down the "PolicyARN", you need it in the next step.
 
 ### Create CloudWatch Alarm to trigger "Down" scaling Policy
 
-aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions <"Down" PolicyARN>
+    aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions <"Down" PolicyARN>
 
 ### Send the jobs uploading files from a directory
 
