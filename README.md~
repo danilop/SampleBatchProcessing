@@ -1,0 +1,59 @@
+# Reference Implementation for Batch Processing on AWS
+
+This is a Reference Implementation for the [AWS Reference Architecture for Batch Processing](http://aws.amazon.com/architecture/).
+
+Is is implemented in Python, using [boto](http://aws.amazon.com/sdkforpython/), and the new [AWS Command Line Interface (CLI)](http://aws.amazon.com/cli/).
+
+Two tools are provided:
+* SendJobs.py - To upload files from a directory to S3 and load "jobs" on processing those files on an SQS queue
+* GetJobs.py - To get "jobs" from an SQS queue and upload on S3 the result of the processing
+
+The setup leverages EC2 Auto Scaling to have a group of instances that is empty (i.e. no instance is running) when there are no "jobs" in the SQS queue and grows whene there is the need.
+
+## Tutorial
+
+### Create an S# Bucket to host input and output files
+
+    aws s3 create-bucket --bucket  <S3 Bucker Name> --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. us-east-1> }'
+
+### Create an SQS Queue to centralize "job" requests
+
+The "VisibilityTimeout" is expressed in seconds and should be larger than the maximun processing time required for a "job". It can eventually be increased for a single "job", bat that is not part of this implementation.
+
+    aws sqs create-queue --queue-name <SQS Queue Name> --attributes VisibilityTimeout=60
+
+### Create a IAM Role to delegate access to processing instances
+
+From the Web Console -> IAM -> Roles -> Create Role -> Under "AWS Service Roles" select "Amazon EC2".
+
+See the "role.json" file for a sample role giving access to an S3 Bucket and an SQS queue.
+You should replace "<AWS ACCount>", "<S3 Bucket Name>" and "<SQS Queue Name>" with yours.
+Write doen the Instance Profile ARN from the Summary tab, you'll need it later.
+
+### Create Auto Scaling Launch Configuration
+
+For this sample I'm using a default Amazon Linux EBS-backed AMI, you can take the AMI ID [here](http://aws.amazon.com/amazon-linux-ami)
+
+    aws autoscaling create-launch-configuration --launch-configuration-name asl-batch --image-id <Amazon Linux AMI ID> --instance-type <EC2 Instance Type, e.g. t1.micro> --iam-instance-profile <Instance Profile ARN> --user-data "`cat user-data.sh`"
+
+If you want to log in to the instances launched by Auto SCaling you can add the following parametrs to the previous command
+
+    --key-name <EC2 Key Pair for SSH login> --security-groups <EC2 Security Group allowing SSH access>
+
+### Create Auto Scaling Group
+
+    aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch --launch-configuration-name asl-batch --min-size 0 --max-size <Number of Instances to starrt when there are "jobs" in the SQS queue> --availability-zones <List of AZ in the region, e.g. for "eu-west-1" you can use all of "eu-west-1a" "eu-west-1b" "eu-west-1c"> --default-cooldown 300
+
+aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment 3 --adjustment-type ExactCapacity
+
+aws cloudwatch put-metric-alarm --alarm-name StartBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 1 --comparison-operator GreaterThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions arn:was:autoscaling:…[replace with the ARN output of previous command]
+
+aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-downscale-policy --scaling-adjustment 0 --adjustment-type ExactCapacity
+
+aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions arn:was:autoscaling:...[replace with the ARN output of previous command]
+
+./SendJobs.py ~/Desktop/Test batch-proc input/ output/ batch-queue eu-west-1
+
+To change the Launch Configuration create a new one and update the Auto Scaling Group:
+
+aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 --auto-scaling-group-name asg-batch

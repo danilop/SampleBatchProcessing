@@ -1,0 +1,8 @@
+#!/bin/sh
+SCRIPT=GetJobs.py
+COMMAND="cp" # For testing
+#PARAMS="<working directory> <output extension> <SQS queue> <AWS region> <command>"
+PARAMS="/var/tmp .out batch-queue eu-west-1 $COMMAND"
+yum update -y
+aws s3 get-object --bucket batch-proc --key $SCRIPT ./$SCRIPT
+python ./$SCRIPT $PARAMS
