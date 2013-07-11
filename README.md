@@ -8,13 +8,13 @@ Two tools are provided:
 * SendJobs.py - to upload files from a (local) directory to S3 and put "job" requests to process those files as messages in an SQS queue
 * GetJobs.py - to get "job" messages from an SQS queue and upload on S3 the outcome of the processing
 
-The setup leverages EC2 Auto Scaling to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.
+The setup leverages EC2 [Auto Scaling](http://aws.amazon.com/autoscaling/) to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.
 
 ## Tutorial
 
 ### Install AWS CLI
 
-Install using pip
+The new AWS Command Line Interface (CLI) tool is Python based, so you can install it using pip
 
     pip install awscli
 
@@ -22,28 +22,35 @@ or using easy_install
 
     easy_install awscli
 
-Before using AWS CLI, you first need to specify your AWS account credentials and default AWS region as described [here](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
+Before using AWS CLI, you first need to specify your AWS account credentials and default AWS region as described
+[here](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
 
-The aws-cli package includes a very useful command completion feature, e.g. to enable tab completion for bash use the built-in command complete (not boot persistant):
+The awscli package includes a very useful command completion feature,
+e.g. to enable tab completion for bash use the built-in command complete (not boot persistant):
 
     complete -C aws_completer aws
 
 ### Create an S3 Bucket to host input and output files
 
+You can create a bucket from the [S3 web console](http://console.aws.amazon.com/s3/) or using the CLI:
+
     aws s3 create-bucket --bucket  <S3 Bucker Name> --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. eu-west-1> }'
 
 ### Create an SQS Queue to centralize "job" requests
 
-The "VisibilityTimeout" is expressed in seconds and should be larger than the maximun processing time required for a "job". It can eventually be increased for a single "job", bat that is not part of this implementation.
+You can create a queue from the [SQS web console](http://console.aws.amazon.com/sqs/) or using the CLI:
+The "VisibilityTimeout" is expressed in seconds and should be larger than the maximun processing time required for a "job".
+It can eventually be increased for a single "job", but that is not part of this implementation.
 
     aws sqs create-queue --queue-name <SQS Queue Name> --attributes VisibilityTimeout=60
 
 ### Create a IAM Role to delegate access to processing instances
 
-From the Web Console -> IAM -> Roles -> Create Role -> Under "AWS Service Roles" select "Amazon EC2".
-
-See the "role.json" file for a sample role giving access to an S3 Bucket and an SQS queue.
-You should replace "AWS Account", "S3 Bucket Name" and "SQS Queue Name" with yours.
+From the [IAM web console](http://console.aws.amazon.com/iam/) -> Roles -> Create Role -> 
+Write a role name.Under "AWS Service Roles" select "Amazon EC2".
+Select a "Custom Policy", write a policy name and see the "role.json" file
+for a sample role giving access to an S3 Bucket and an SQS queue.
+You should replace "AWS Account", "S3 Bucket Name" and "SQS Queue Name" in the policy with yours.
 Write down the Instance Profile ARN from the Summary tab, you'll need it later.
 
 ### Create Auto Scaling Launch Configuration
@@ -54,7 +61,7 @@ Alternatively you can create your own AMI that starts one of more parallel "GetJ
 
     aws autoscaling create-launch-configuration --launch-configuration-name asl-batch --image-id <Amazon Linux AMI ID> --instance-type <EC2 Instance Type, e.g. t1.micro> --iam-instance-profile <Instance Profile ARN> --user-data "`cat user-data.sh`"
 
-If you want to log in to the instances launched by Auto SCaling you can add the following parametrs to the previous command
+If you want to be able to login into the instances launched by Auto Scaling you can add the following parametrs to the previous command
 
     --key-name <EC2 Key Pair for SSH login> --security-groups <EC2 Security Group allowing SSH access>
 
@@ -66,7 +73,7 @@ If you want to log in to the instances launched by Auto SCaling you can add the 
 
     aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment <Number of Instances to start when there are "jobs" in the SQS queue> --adjustment-type ExactCapacity
 
-Write down the "PolicyARN", you need it in the next step.
+Write down the "PolicyARN", you need it in the next step to set up the alarm.
 
 ### Create CloudWatch Alarm to trigger "Up" scaling Policy
 
@@ -76,7 +83,7 @@ Write down the "PolicyARN", you need it in the next step.
 
     aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-downscale-policy --scaling-adjustment 0 --adjustment-type ExactCapacity
 
-Write down the "PolicyARN", you need it in the next step.
+Write down the "PolicyARN", you need it in the next step to set up the alarm.
 
 ### Create CloudWatch Alarm to trigger "Down" scaling Policy
 
@@ -88,7 +95,7 @@ The directory can be local or on an EC2 instance.
 
     ./SendJobs.py <Directory> <S3 Bucket Name> input/ output/ <SQS Queue Name> <AWS Region, e.g. "eu-west-1">
 
-To get help run the tool without options
+To get help, run the tool without options
 
     ./SendJobs.py
 
