@@ -34,7 +34,8 @@ e.g. to enable tab completion for bash use the built-in command complete (not bo
 
 You can create a bucket from the [S3 web console](http://console.aws.amazon.com/s3/) or using the CLI:
 
-    aws s3 create-bucket --bucket  <S3 Bucker Name> --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. eu-west-1> }'
+    aws s3 create-bucket --bucket  <S3 Bucker Name> \
+    --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. eu-west-1> }'
 
 ### Create an SQS Queue to centralize "job" requests
 
@@ -59,7 +60,9 @@ For this sample I'm using a default Amazon Linux EBS-backed AMI, you can take th
 The user data script provided automatically configures and run multiple parallel "GetJobs.py" scripts per node to get "job" from the queue and process them, uploading the final result back on S3. You probably need to edit the "user-data.sh" file before launching the following command.
 Alternatively you can create your own AMI that starts one of more parallel "GetJobs.py" scripts at boot.
 
-    aws autoscaling create-launch-configuration --launch-configuration-name asl-batch --image-id <Amazon Linux AMI ID> --instance-type <EC2 Instance Type, e.g. t1.micro> --iam-instance-profile <Instance Profile ARN> --user-data "`cat user-data.sh`"
+    aws autoscaling create-launch-configuration --launch-configuration-name asl-batch \
+    --image-id <Amazon Linux AMI ID> --instance-type <EC2 Instance Type, e.g. t1.micro> \
+    --iam-instance-profile <Instance Profile ARN> --user-data "`cat user-data.sh`"
 
 If you want to be able to login into the instances launched by Auto Scaling you can add the following parametrs to the previous command
 
@@ -67,27 +70,41 @@ If you want to be able to login into the instances launched by Auto Scaling you 
 
 ### Create Auto Scaling Group
 
-    aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch --launch-configuration-name asl-batch --min-size 0 --max-size <Number of Instances to start when there are "jobs" in the SQS queue> --availability-zones <List of AZ in the region, e.g. for "eu-west-1" you can use all of "eu-west-1a" "eu-west-1b" "eu-west-1c"> --default-cooldown 300
+    aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch \
+    --launch-configuration-name asl-batch --min-size 0 \
+    --max-size <Number of Instances to start when there are "jobs" in the SQS queue> \
+    --availability-zones <All AZs in the region, \
+    e.g. for "eu-west-1" you can use "eu-west-1a" "eu-west-1b" "eu-west-1c"> \
+    --default-cooldown 300
 
 ### Create Auto Scaling "Up" Policy
 
-    aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment <Number of Instances to start when there are "jobs" in the SQS queue> --adjustment-type ExactCapacity
+    aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy \
+    --scaling-adjustment <Number of Instances to start when there are "jobs" in the SQS queue> \
+    --adjustment-type ExactCapacity
 
 Write down the "PolicyARN", you need it in the next step to set up the alarm.
 
 ### Create CloudWatch Alarm to trigger "Up" scaling Policy
 
-    aws cloudwatch put-metric-alarm --alarm-name StartBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 1 --comparison-operator GreaterThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions <"Up" PolicyARN>
+    aws cloudwatch put-metric-alarm --alarm-name StartBatchProcessing --metric-name ApproximateNumberOfMessagesVisible \
+    --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 1 \
+    --comparison-operator GreaterThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue \
+    --alarm-actions <"Up" PolicyARN>
 
 ### Create Auto Scaling "Down" Policy
 
-    aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-downscale-policy --scaling-adjustment 0 --adjustment-type ExactCapacity
+    aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-downscale-policy \
+    --scaling-adjustment 0 --adjustment-type ExactCapacity
 
 Write down the "PolicyARN", you need it in the next step to set up the alarm.
 
 ### Create CloudWatch Alarm to trigger "Down" scaling Policy
 
-    aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions <"Down" PolicyARN>
+    aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible \
+    --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 \
+    --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue \
+    --alarm-actions <"Down" PolicyARN>
 
 ### Send the jobs uploading files from a directory
 
@@ -107,4 +124,5 @@ You should find the output of the processing in the S3 Bucket under the "ouput/"
 
 If later on you need to change the Launch Configuration create a new one and update the Auto Scaling Group, e.g.
 
-    aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 --auto-scaling-group-name asg-batch
+    aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 \
+    --auto-scaling-group-name asg-batch
