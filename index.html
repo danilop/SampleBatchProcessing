@@ -43,7 +43,7 @@
 <ul>
 <li>SendJobs.py - to upload files from a (local) directory to S3 and put "job" requests to process those files as messages in an SQS queue</li>
 <li>GetJobs.py - to get "job" messages from an SQS queue and upload on S3 the outcome of the processing</li>
-</ul><p>The setup leverages EC2 Auto Scaling to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.</p>
+</ul><p>The setup leverages <a href="http://aws.amazon.com/ec2/">EC2</a> <a href="http://aws.amazon.com/autoscaling/">Auto Scaling</a> to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.</p>
 
 <h2>
 <a name="tutorial" class="anchor" href="#tutorial"><span class="octicon octicon-link"></span></a>Tutorial</h2>
@@ -51,19 +51,22 @@
 <h3>
 <a name="install-aws-cli" class="anchor" href="#install-aws-cli"><span class="octicon octicon-link"></span></a>Install AWS CLI</h3>
 
-<p>Install using pip</p>
+<p>The new <a href="http://aws.amazon.com/cli/">AWS Command Line Interface (CLI) tool</a>
+is Python based, so you can install it using "pip"</p>
 
 <pre><code>pip install awscli
 </code></pre>
 
-<p>or using easy_install</p>
+<p>or using "easy_install"</p>
 
 <pre><code>easy_install awscli
 </code></pre>
 
-<p>Before using AWS CLI, you first need to specify your AWS account credentials and default AWS region as described <a href="http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html">here</a>.</p>
+<p>Before using AWS CLI, you first need to specify your AWS account credentials and default AWS region as described
+<a href="http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html">here</a>.</p>
 
-<p>The aws-cli package includes a very useful command completion feature, e.g. to enable tab completion for bash use the built-in command complete (not boot persistant):</p>
+<p>The awscli package includes a very useful command completion feature,
+e.g. to enable tab completion for bash use the built-in command complete (not boot persistant):</p>
 
 <pre><code>complete -C aws_completer aws
 </code></pre>
@@ -71,13 +74,18 @@
 <h3>
 <a name="create-an-s3-bucket-to-host-input-and-output-files" class="anchor" href="#create-an-s3-bucket-to-host-input-and-output-files"><span class="octicon octicon-link"></span></a>Create an S3 Bucket to host input and output files</h3>
 
-<pre><code>aws s3 create-bucket --bucket  &lt;S3 Bucker Name&gt; --create-bucket-configuration '{ "location_constraint": &lt;Your AWS Region, e.g. eu-west-1&gt; }'
+<p>You can create a bucket from the <a href="http://console.aws.amazon.com/s3/">S3 web console</a> or using the CLI:</p>
+
+<pre><code>aws s3 create-bucket --bucket  &lt;S3 Bucket Name&gt; \
+--create-bucket-configuration '{ "location_constraint": &lt;Your AWS Region, e.g. "eu-west-1"&gt; }'
 </code></pre>
 
 <h3>
 <a name="create-an-sqs-queue-to-centralize-job-requests" class="anchor" href="#create-an-sqs-queue-to-centralize-job-requests"><span class="octicon octicon-link"></span></a>Create an SQS Queue to centralize "job" requests</h3>
 
-<p>The "VisibilityTimeout" is expressed in seconds and should be larger than the maximun processing time required for a "job". It can eventually be increased for a single "job", bat that is not part of this implementation.</p>
+<p>You can create a queue from the <a href="http://console.aws.amazon.com/sqs/">SQS web console</a> or using the CLI:
+The "VisibilityTimeout" is expressed in seconds and should be larger than the maximun processing time required for a "job".
+It can eventually be increased for a single "job", but that is not part of this implementation.</p>
 
 <pre><code>aws sqs create-queue --queue-name &lt;SQS Queue Name&gt; --attributes VisibilityTimeout=60
 </code></pre>
@@ -85,10 +93,11 @@
 <h3>
 <a name="create-a-iam-role-to-delegate-access-to-processing-instances" class="anchor" href="#create-a-iam-role-to-delegate-access-to-processing-instances"><span class="octicon octicon-link"></span></a>Create a IAM Role to delegate access to processing instances</h3>
 
-<p>From the Web Console -&gt; IAM -&gt; Roles -&gt; Create Role -&gt; Under "AWS Service Roles" select "Amazon EC2".</p>
-
-<p>See the "role.json" file for a sample role giving access to an S3 Bucket and an SQS queue.
-You should replace "AWS Account", "S3 Bucket Name" and "SQS Queue Name" with yours.
+<p>From the <a href="http://console.aws.amazon.com/iam/">IAM web console</a> -&gt; Roles -&gt; Create Role -&gt; 
+Write a role name.Under "AWS Service Roles" select "Amazon EC2".
+Select a "Custom Policy", write a policy name and see the "role.json" file
+for a sample role giving access to an S3 bucket and an SQS queue.
+You should replace "AWS Account", "S3 Bucket Name" and "SQS Queue Name" in the policy with yours.
 Write down the Instance Profile ARN from the Summary tab, you'll need it later.</p>
 
 <h3>
@@ -98,10 +107,12 @@ Write down the Instance Profile ARN from the Summary tab, you'll need it later.<
 The user data script provided automatically configures and run multiple parallel "GetJobs.py" scripts per node to get "job" from the queue and process them, uploading the final result back on S3. You probably need to edit the "user-data.sh" file before launching the following command.
 Alternatively you can create your own AMI that starts one of more parallel "GetJobs.py" scripts at boot.</p>
 
-<pre><code>aws autoscaling create-launch-configuration --launch-configuration-name asl-batch --image-id &lt;Amazon Linux AMI ID&gt; --instance-type &lt;EC2 Instance Type, e.g. t1.micro&gt; --iam-instance-profile &lt;Instance Profile ARN&gt; --user-data "`cat user-data.sh`"
+<pre><code>aws autoscaling create-launch-configuration --launch-configuration-name asl-batch \
+--image-id &lt;Amazon Linux AMI ID&gt; --instance-type &lt;EC2 Instance Type, e.g. t1.micro&gt; \
+--iam-instance-profile &lt;Instance Profile ARN&gt; --user-data "`cat user-data.sh`"
 </code></pre>
 
-<p>If you want to log in to the instances launched by Auto SCaling you can add the following parametrs to the previous command</p>
+<p>If you want to be able to login into the instances launched by Auto Scaling you can add the following parametrs to the previous command</p>
 
 <pre><code>--key-name &lt;EC2 Key Pair for SSH login&gt; --security-groups &lt;EC2 Security Group allowing SSH access&gt;
 </code></pre>
@@ -109,35 +120,49 @@ Alternatively you can create your own AMI that starts one of more parallel "GetJ
 <h3>
 <a name="create-auto-scaling-group" class="anchor" href="#create-auto-scaling-group"><span class="octicon octicon-link"></span></a>Create Auto Scaling Group</h3>
 
-<pre><code>aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch --launch-configuration-name asl-batch --min-size 0 --max-size &lt;Number of Instances to start when there are "jobs" in the SQS queue&gt; --availability-zones &lt;List of AZ in the region, e.g. for "eu-west-1" you can use all of "eu-west-1a" "eu-west-1b" "eu-west-1c"&gt; --default-cooldown 300
+<pre><code>aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-batch \
+--launch-configuration-name asl-batch --min-size 0 \
+--max-size &lt;Number of Instances to start when there are "jobs" in the SQS queue&gt; \
+--availability-zones &lt;All AZs in the region, \
+e.g. for "eu-west-1" you can use "eu-west-1a" "eu-west-1b" "eu-west-1c"&gt; \
+--default-cooldown 300
 </code></pre>
 
 <h3>
 <a name="create-auto-scaling-up-policy" class="anchor" href="#create-auto-scaling-up-policy"><span class="octicon octicon-link"></span></a>Create Auto Scaling "Up" Policy</h3>
 
-<pre><code>aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy --scaling-adjustment &lt;Number of Instances to start when there are "jobs" in the SQS queue&gt; --adjustment-type ExactCapacity
+<pre><code>aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-upscale-policy \
+--scaling-adjustment &lt;Number of Instances to start when there are "jobs" in the SQS queue&gt; \
+--adjustment-type ExactCapacity
 </code></pre>
 
-<p>Write down the "PolicyARN", you need it in the next step.</p>
+<p>Write down the "PolicyARN", you need it in the next step to set up the alarm.</p>
 
 <h3>
 <a name="create-cloudwatch-alarm-to-trigger-up-scaling-policy" class="anchor" href="#create-cloudwatch-alarm-to-trigger-up-scaling-policy"><span class="octicon octicon-link"></span></a>Create CloudWatch Alarm to trigger "Up" scaling Policy</h3>
 
-<pre><code>aws cloudwatch put-metric-alarm --alarm-name StartBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 1 --comparison-operator GreaterThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions &lt;"Up" PolicyARN&gt;
+<pre><code>aws cloudwatch put-metric-alarm --alarm-name StartBatchProcessing --metric-name ApproximateNumberOfMessagesVisible \
+--namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 1 \
+--comparison-operator GreaterThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue \
+--alarm-actions &lt;"Up" PolicyARN&gt;
 </code></pre>
 
 <h3>
 <a name="create-auto-scaling-down-policy" class="anchor" href="#create-auto-scaling-down-policy"><span class="octicon octicon-link"></span></a>Create Auto Scaling "Down" Policy</h3>
 
-<pre><code>aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-downscale-policy --scaling-adjustment 0 --adjustment-type ExactCapacity
+<pre><code>aws autoscaling put-scaling-policy --auto-scaling-group-name asg-batch --policy-name ash-batch-downscale-policy \
+--scaling-adjustment 0 --adjustment-type ExactCapacity
 </code></pre>
 
-<p>Write down the "PolicyARN", you need it in the next step.</p>
+<p>Write down the "PolicyARN", you need it in the next step to set up the alarm.</p>
 
 <h3>
 <a name="create-cloudwatch-alarm-to-trigger-down-scaling-policy" class="anchor" href="#create-cloudwatch-alarm-to-trigger-down-scaling-policy"><span class="octicon octicon-link"></span></a>Create CloudWatch Alarm to trigger "Down" scaling Policy</h3>
 
-<pre><code>aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue --alarm-actions &lt;"Down" PolicyARN&gt;
+<pre><code>aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible \
+--namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 \
+--comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue \
+--alarm-actions &lt;"Down" PolicyARN&gt;
 </code></pre>
 
 <h3>
@@ -148,21 +173,24 @@ Alternatively you can create your own AMI that starts one of more parallel "GetJ
 <pre><code>./SendJobs.py &lt;Directory&gt; &lt;S3 Bucket Name&gt; input/ output/ &lt;SQS Queue Name&gt; &lt;AWS Region, e.g. "eu-west-1"&gt;
 </code></pre>
 
-<p>To get help run the tool without options</p>
+<p>To get help, run the tool without options</p>
 
 <pre><code>./SendJobs.py
 </code></pre>
 
-<p>After a few minutes the first CloudWatch Alarm should trigger the "Up" scaling Policy to start EC2 Instances configured to consume "jobs" from the SQS queue.
-When all "jobs" are processed and the SQS is "empty" the seconf CloudWatch Alarm should trigger the "Down" scaling Policy to shutdown and terminate the EC2 Instances.
-You should find the output of the processing in the S3 Bucket under the "ouput/" prefix.</p>
+<p>After a few minutes the first CloudWatch Alarm should trigger the "Up" scaling Policy
+to start EC2 Instances configured to consume "jobs" from the SQS queue.
+When all "jobs" are processed and the SQS is "empty" the second CloudWatch Alarm should trigger
+the "Down" scaling Policy to shutdown and terminate the EC2 Instances.
+You should find the output of the processing in the S3 bucket under the "ouput/" prefix.</p>
 
 <h3>
 <a name="change-the-launch-configuration-of-an-auto-scaling-group" class="anchor" href="#change-the-launch-configuration-of-an-auto-scaling-group"><span class="octicon octicon-link"></span></a>Change the Launch Configuration of an Auto Scaling Group</h3>
 
 <p>If later on you need to change the Launch Configuration create a new one and update the Auto Scaling Group, e.g.</p>
 
-<pre><code>aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 --auto-scaling-group-name asg-batch
+<pre><code>aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 \
+--auto-scaling-group-name asg-batch
 </code></pre>
       </section>
     </div>
