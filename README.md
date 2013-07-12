@@ -8,17 +8,18 @@ Two tools are provided:
 * SendJobs.py - to upload files from a (local) directory to S3 and put "job" requests to process those files as messages in an SQS queue
 * GetJobs.py - to get "job" messages from an SQS queue and upload on S3 the outcome of the processing
 
-The setup leverages EC2 [Auto Scaling](http://aws.amazon.com/autoscaling/) to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.
+The setup leverages [EC2](http://aws.amazon.com/ec2/) [Auto Scaling](http://aws.amazon.com/autoscaling/) to have a group of instances that is empty (i.e. no instance is running) when there are no "job" requests in the SQS queue and grows when there is the need.
 
 ## Tutorial
 
 ### Install AWS CLI
 
-The new AWS Command Line Interface (CLI) tool is Python based, so you can install it using pip
+The new [AWS Command Line Interface (CLI) tool](http://aws.amazon.com/cli/)
+is Python based, so you can install it using "pip"
 
     pip install awscli
 
-or using easy_install
+or using "easy_install"
 
     easy_install awscli
 
@@ -50,7 +51,7 @@ It can eventually be increased for a single "job", but that is not part of this 
 From the [IAM web console](http://console.aws.amazon.com/iam/) -> Roles -> Create Role -> 
 Write a role name.Under "AWS Service Roles" select "Amazon EC2".
 Select a "Custom Policy", write a policy name and see the "role.json" file
-for a sample role giving access to an S3 Bucket and an SQS queue.
+for a sample role giving access to an S3 bucket and an SQS queue.
 You should replace "AWS Account", "S3 Bucket Name" and "SQS Queue Name" in the policy with yours.
 Write down the Instance Profile ARN from the Summary tab, you'll need it later.
 
@@ -116,9 +117,11 @@ To get help, run the tool without options
 
     ./SendJobs.py
 
-After a few minutes the first CloudWatch Alarm should trigger the "Up" scaling Policy to start EC2 Instances configured to consume "jobs" from the SQS queue.
-When all "jobs" are processed and the SQS is "empty" the seconf CloudWatch Alarm should trigger the "Down" scaling Policy to shutdown and terminate the EC2 Instances.
-You should find the output of the processing in the S3 Bucket under the "ouput/" prefix.
+After a few minutes the first CloudWatch Alarm should trigger the "Up" scaling Policy
+to start EC2 Instances configured to consume "jobs" from the SQS queue.
+When all "jobs" are processed and the SQS is "empty" the second CloudWatch Alarm should trigger
+the "Down" scaling Policy to shutdown and terminate the EC2 Instances.
+You should find the output of the processing in the S3 bucket under the "ouput/" prefix.
 
 ### Change the Launch Configuration of an Auto Scaling Group
 
