@@ -35,7 +35,7 @@ e.g. to enable tab completion for bash use the built-in command complete (not bo
 
 You can create a bucket from the [S3 web console](http://console.aws.amazon.com/s3/) or using the CLI:
 
-    aws s3 create-bucket --bucket  <S3 Bucket Name> \
+    aws s3api create-bucket --bucket  <S3 Bucket Name> \
     --create-bucket-configuration '{ "location_constraint": <Your AWS Region, e.g. "eu-west-1"> }'
 
 ### Create an SQS Queue to centralize "job" requests
