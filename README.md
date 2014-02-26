@@ -129,7 +129,3 @@ If later on you need to change the Launch Configuration create a new one and upd
 
     aws autoscaling update-auto-scaling-group --launch-configuration-name asl-batch-v2 \
     --auto-scaling-group-name asg-batch
-
-
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/danilop/samplebatchprocessing/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-
