@@ -90,7 +90,7 @@ Write down the "PolicyARN", you need it in the next step to set up the alarm.
 
     aws cloudwatch put-metric-alarm --alarm-name StartBatchProcessing --metric-name ApproximateNumberOfMessagesVisible \
     --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 1 \
-    --comparison-operator GreaterThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue \
+    --comparison-operator GreaterThanOrEqualToThreshold --dimensions Name=QueueName,Value=batch-queue \
     --alarm-actions <"Up" PolicyARN>
 
 ### Create Auto Scaling "Down" Policy
@@ -104,7 +104,7 @@ Write down the "PolicyARN", you need it in the next step to set up the alarm.
 
     aws cloudwatch put-metric-alarm --alarm-name StopBatchProcessing --metric-name ApproximateNumberOfMessagesVisible \
     --namespace "AWS/SQS" --statistic Average --period 60  --evaluation-periods 2 --threshold 0 \
-    --comparison-operator LessThanOrEqualToThreshold --dimensions name=QueueName,value=batch-queue \
+    --comparison-operator LessThanOrEqualToThreshold --dimensions Name=QueueName,Value=batch-queue \
     --alarm-actions <"Down" PolicyARN>
 
 ### Send the jobs uploading files from a directory
